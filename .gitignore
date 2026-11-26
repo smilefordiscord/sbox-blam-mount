@@ -1,0 +1,22 @@
+bin/
+obj/
+.vs/
+.vscode/
+*.user
+*.suo
+
+# Asset GUIDs the s&box editor writes next to files it opens.
+*.meta
+
+# Compiled shaders: the build makes these (tools/compile-shaders.ps1) for the s&box it builds against.
+*.shader_c
+
+# Never commit game content extracted from a local install.
+*.map
+*.dds
+*.png
+out/
+
+scratch/
+.claude
+shadertoolsconfig.json

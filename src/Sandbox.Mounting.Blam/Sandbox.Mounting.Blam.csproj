@@ -1,0 +1,98 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <VersionPrefix>0.1.0</VersionPrefix>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>1701;1702;1573;1591</NoWarn>
+    <!-- Always optimized: the audio decoders are ~7x slower in an unoptimized build. -->
+    <Optimize>true</Optimize>
+  </PropertyGroup>
+
+  <!-- Built against the assemblies of the installed s&box, which provides them at runtime. -->
+  <ItemGroup>
+    <Reference Include="Sandbox.Engine" HintPath="$(SboxManagedDir)\Sandbox.Engine.dll" Private="false" />
+    <Reference Include="Sandbox.Mounting" HintPath="$(SboxManagedDir)\Sandbox.Mounting.dll" Private="false" />
+    <Reference Include="Sandbox.System" HintPath="$(SboxManagedDir)\Sandbox.System.dll" Private="false" />
+    <Reference Include="Sandbox.Filesystem" HintPath="$(SboxManagedDir)\Sandbox.Filesystem.dll" Private="false" />
+    <Reference Include="Zio" HintPath="$(SboxManagedDir)\Zio.dll" Private="false" />
+  </ItemGroup>
+
+  <!--
+    s&box weaves [Sync], [Rpc] and its other code generator attributes into game code as it compiles it. The gameplay code (Gameplay/,
+    the Sandbox weapons) gets the same from s&box's own generator, run by tools/GameplayCodeGen as the engine's CodeGen tool runs it
+    for the engine's projects: it writes processed copies of the sources to Gameplay/obj/.generated, which are compiled in their place.
+  -->
+  <ItemGroup>
+    <Compile Remove="Gameplay\obj\**" />
+    <ProjectReference Include="..\..\tools\GameplayCodeGen\GameplayCodeGen.csproj" ReferenceOutputAssembly="false" Private="false" />
+  </ItemGroup>
+
+  <Target Name="GameplayCodeGen" BeforeTargets="CoreCompile" DependsOnTargets="ResolveAssemblyReferences" Condition="'$(DesignTimeBuild)' != 'true'">
+    <PropertyGroup>
+      <GameplayCodeGenTool>$(MSBuildThisFileDirectory)..\..\tools\GameplayCodeGen\bin\$(Configuration)\GameplayCodeGen.dll</GameplayCodeGenTool>
+      <GameplayCodeGenReferences>$(MSBuildProjectDirectory)\$(IntermediateOutputPath)gameplay.codegen.rsp</GameplayCodeGenReferences>
+    </PropertyGroup>
+    <WriteLinesToFile File="$(GameplayCodeGenReferences)" Lines="@(ReferencePath)" Overwrite="true" WriteOnlyWhenDifferent="true" />
+    <Exec Command="dotnet &quot;$(GameplayCodeGenTool)&quot; Gameplay @&quot;$(GameplayCodeGenReferences)&quot; Assembly.cs" WorkingDirectory="$(MSBuildProjectDirectory)" StandardOutputImportance="low" />
+    <ItemGroup>
+      <Compile Remove="Gameplay\**\*.cs" />
+      <Compile Include="Gameplay\obj\.generated\**\*.cs" />
+    </ItemGroup>
+  </Target>
+
+  <!--
+    Shaders and other files s&box loads from mounts/blam/Assets. The build output's Assets folder
+    is what gets deployed: these, plus the compiled shaders.
+  -->
+  <ItemGroup>
+    <MountAsset Include="Assets\**\*" Exclude="Assets\**\*.shader_c;Assets\**\*.meta" />
+    <MountShader Include="Assets\shaders\*.shader" />
+    <MountShaderInput Include="@(MountShader);$(MSBuildThisFileDirectory)..\..\tools\compile-shaders.ps1" />
+    <MountShaderInput Include="$(SboxDir)\.version" Condition="Exists('$(SboxDir)\.version')" />
+  </ItemGroup>
+
+  <!-- Where the built mount's Assets folder goes. OutDir only exists once the SDK's targets are in. -->
+  <Target Name="GetMountAssetsDir">
+    <PropertyGroup>
+      <MountAssetsDir>$([MSBuild]::NormalizePath('$(MSBuildProjectDirectory)', '$(OutDir)', 'Assets'))</MountAssetsDir>
+    </PropertyGroup>
+  </Target>
+
+  <Target Name="CopyMountAssets" AfterTargets="Build" DependsOnTargets="GetMountAssetsDir">
+    <Copy SourceFiles="@(MountAsset)" DestinationFiles="@(MountAsset->'$(MountAssetsDir)\%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" />
+  </Target>
+
+  <!--
+    s&box only renders with compiled shaders and can't compile them outside the editor, so the
+    build compiles them with s&box's own command line compiler (see tools/compile-shaders.ps1). They
+    belong to the s&box build that compiled them: a newer s&box recompiles them on the next build.
+    Skip with -p:CompileShaders=false.
+  -->
+  <Target Name="CompileShaders" AfterTargets="Build" DependsOnTargets="GetMountAssetsDir" Condition="'$(CompileShaders)' != 'false'"
+          Inputs="@(MountShaderInput)" Outputs="@(MountShader->'$(MountAssetsDir)\shaders\%(Filename).shader_c')">
+    <Error Condition="!Exists('$(SboxManagedDir)\ShaderCompiler.exe')" Text="s&amp;box's shader compiler isn't at $(SboxManagedDir)\ShaderCompiler.exe. Build with -p:CompileShaders=false to skip compiling shaders." />
+    <Exec Command="powershell -NoProfile -ExecutionPolicy Bypass -File &quot;$(MSBuildThisFileDirectory)..\..\tools\compile-shaders.ps1&quot; -Engine &quot;$(SboxDir.TrimEnd('\'))&quot; -OutDir &quot;$(MountAssetsDir)\shaders&quot;" CustomErrorRegularExpression="^ShaderCompiler: " />
+    <!-- Unchanged outputs keep their old time; mark them current so the next build skips this. -->
+    <Touch Files="@(MountShader->'$(MountAssetsDir)\shaders\%(Filename).shader_c')" />
+  </Target>
+
+  <!--
+    s&box loads every mounts/<name>/<name>.dll at startup. Build with -p:DeployToSbox=true to copy
+    the mount into the s&box install.
+  -->
+  <Target Name="DeployToSbox" AfterTargets="Build" DependsOnTargets="CopyMountAssets;CompileShaders" Condition="'$(DeployToSbox)' == 'true'">
+    <ItemGroup>
+      <BuiltMountAsset Include="$(MountAssetsDir)\**\*" />
+    </ItemGroup>
+    <Copy SourceFiles="@(BuiltMountAsset)" DestinationFiles="@(BuiltMountAsset->'$(SboxDir)\mounts\blam\Assets\%(RecursiveDir)%(Filename)%(Extension)')" />
+    <Copy SourceFiles="$(OutputPath)$(AssemblyName).dll" DestinationFiles="$(SboxDir)\mounts\blam\blam.dll" />
+    <Message Importance="high" Text="Deployed mount to $(SboxDir)\mounts\blam\blam.dll" />
+  </Target>
+
+  <!-- s&box only loads mount assemblies carrying an Ident. -->
+  <ItemGroup>
+    <AssemblyMetadata Include="Ident" Value="halo_blam_mount" />
+  </ItemGroup>
+
+</Project>

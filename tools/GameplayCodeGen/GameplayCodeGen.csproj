@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Runs s&box's code generator over the mount's gameplay code at build time (see Program.cs). -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <!-- The generator and the Roslyn it was built with, from the installed s&box, copied beside the tool. -->
+  <ItemGroup>
+    <Reference Include="Sandbox.Generator" HintPath="$(SboxManagedDir)\Sandbox.Generator.dll" />
+    <Reference Include="Sandbox.System" HintPath="$(SboxManagedDir)\Sandbox.System.dll" />
+    <Reference Include="Microsoft.CodeAnalysis" HintPath="$(SboxManagedDir)\Microsoft.CodeAnalysis.dll" />
+    <Reference Include="Microsoft.CodeAnalysis.CSharp" HintPath="$(SboxManagedDir)\Microsoft.CodeAnalysis.CSharp.dll" />
+  </ItemGroup>
+
+</Project>
