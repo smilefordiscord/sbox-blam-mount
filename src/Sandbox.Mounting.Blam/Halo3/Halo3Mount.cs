@@ -67,8 +67,21 @@ public sealed class Halo3Mount : MccMount
 		models.Register( context );
 		animationData.Register( context );
 		ShowInSpawnMenus( models.Paths );
+		HideSkyScenes();
 		IsMounted = true;
 		return Task.CompletedTask;
+	}
+
+	// Sky scenes are sub-scenes for Skybox3D; mark them DeveloperOnly so map pickers only list the playable maps.
+	void HideSkyScenes()
+	{
+		var prefix = $"mount://{Ident}/skies/";
+		var registered = Directory.Get( Ident ) ?? this;
+		foreach ( var scene in registered.GetAll( ResourceType.Scene ) )
+		{
+			if ( scene.Path.StartsWith( prefix, StringComparison.OrdinalIgnoreCase ) )
+				scene.Flags |= ResourceFlags.DeveloperOnly;
+		}
 	}
 
 	// The resource path of an object model (an hlmt's path).

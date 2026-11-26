@@ -300,10 +300,10 @@ static class ScenarioObjectsBuilder
 
 	// The sky: a scenery object (scen → hlmt → mode) whose model is the world around the level in world units, at the origin (Blackout's ice floes 50-900 world units out, domes ~9,000).
 	// It's drawn as s&box's 3D skybox, like MCC's own sky pass: after the level's opaque geometry where nothing covers it, with its own depth (so no far plane cuts it and its layers sort by their true distance) and its true parallax.
-	// The sky scene (maps/sky/<map>.scene, BuildSkyScene) holds the model this many times smaller; the skybox draws it this much larger again.
+	// The sky scene (skies/<map>.scene, BuildSkyScene) holds the model this many times smaller; the skybox draws it this much larger again.
 	public const float SkyboxScale = 64;
 
-	public static string SkyScenePath( CacheFile cache ) => $"maps/sky/{cache.Name}";
+	public static string SkyScenePath( CacheFile cache ) => $"skies/{cache.Name}";
 
 	// The shown sky's model lighting, what MCC lights the sky and any object with no lightmap under it with (RenderModelTag.Lighting); null without a sky model.
 	public static LightProbe SkyLighting( ScenarioTag scenario ) => SkyLighting( new ScenarioPlan( scenario, ShownBspMask( scenario ) ) );

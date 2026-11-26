@@ -62,6 +62,11 @@ echo.
 dotnet build "%REPO_DIR%src\Sandbox.Mounting.Blam" -p:DeployToSbox=true -p:SboxDir="%SBOX_DIR%" %1 %2 %3 %4 %5 %6 %7 %8 %9
 if errorlevel 1 goto :fail
 
+rem Clean up any leftover dev-loader installs so mounts aren't loaded twice alongside blam.dll
+if exist "!SBOX_DIR!\mounts\blam\dev" rmdir /s /q "!SBOX_DIR!\mounts\blam\dev" 2>nul
+if exist "!SBOX_DIR!\mounts\halo2" rmdir /s /q "!SBOX_DIR!\mounts\halo2" 2>nul
+if exist "!SBOX_DIR!\mounts\halo3" rmdir /s /q "!SBOX_DIR!\mounts\halo3" 2>nul
+
 echo.
 echo Done! Start s^&box and enable Halo: Combat Evolved, Halo 2, and/or Halo 3 in the mount list.
 goto :done
