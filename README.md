@@ -62,13 +62,15 @@ Mount the classic Halo games directly inside [s&box](https://sbox.game) from you
 
 ### Build and deploy
 
-Close s&box and the s&box editor first (they keep mounted DLLs locked while running), then run:
+Close s&box and the s&box editor first (they keep mounted DLLs locked while running), then **double-click `build.bat`** (it auto-detects your Steam s&box install, builds the mount, compiles the shaders, and deploys everything).
+
+Or run from a terminal:
 
 ```sh
-dotnet build src/Sandbox.Mounting.Blam -p:DeployToSbox=true
+build.bat
 ```
 
-If s&box isn't in the default Steam library (`C:\Program Files (x86)\Steam\steamapps\common\sbox`), pass your install path:
+If s&box is in a custom location or you prefer running `dotnet` directly:
 
 ```sh
 dotnet build src/Sandbox.Mounting.Blam -p:DeployToSbox=true -p:SboxDir="D:\path\to\sbox"
